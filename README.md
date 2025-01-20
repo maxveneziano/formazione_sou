@@ -48,7 +48,7 @@ In the Settings menu (Settings icon):
 - Set Skip Unattended installation
 - Check the correct configuration and then press Start to create the VM
 
-ROCKY LINUX 9.5 Installation
+**ROCKY LINUX 9.5 Installation**
 
 - Select Install Rocky Linux 9.5 and press enter
 - A Terminal window will open and will show all the installation step
@@ -103,8 +103,6 @@ ROCKY LINUX 9.5 Installation
 - Reboot
 - In Activities open a browser and check the correct internet browsing.
 - Shut down
-
-
 - Launch node 3
 - After login and booting completion 
 - Press the Cog icon and select the IPv4 tab and Set:
