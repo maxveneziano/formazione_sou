@@ -126,7 +126,7 @@ Ref: https://docs.vultr.com/how-to-install-mariadb-on-rocky-linux-9
 
   mariadb Ver 15.1 *Distrib 1,5,22-MariaDB, for Linux (x86\_64 using EditLine wrapper*
 
-**Configuring Maria DB System Service - node 2cd**
+**Configuring Maria DB System Service - node 2**
 
 - Set MariaDB service to start at boot sudo systemctl enable mariadb
 - Start the MariaDB service sudo systemctl start mariadb
