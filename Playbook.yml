@@ -1,0 +1,286 @@
+---
+- name: test
+  hosts: all
+  gather_facts: true
+  become: true
+  
+  tasks:
+
+   - name: Update all packages
+     package: 
+       name: '*'
+       state: latest    
+
+   - name: Create Max1 user
+     user:
+       name: Max1
+       state: present
+       password: "{{ 'Password1' | password_hash('sha512') }}"
+       update_password: on_create
+       shell: /bin/bash
+
+#   - name: Install wget
+#     dnf: 
+#       name:
+#          - wget
+#       state: latest
+
+#=============== MariaDB section ==================
+- name: Install MariaDB
+  hosts: mariadb
+  gather_facts: true
+  become: true
+  vars:
+    mariadb_root_password: "12345"
+
+  tasks:
+
+   - name: Install python3-PyMySQL
+     dnf: 
+       name:
+          - python3-PyMySQL
+       state: latest       
+
+   - name: Add .my.cnf to user home
+     template:
+       src: my.cnf.j2
+       dest: /root/.my.cnf
+
+   - name: Install MariaDB server
+     dnf: 
+       name:
+          - mariadb
+          - mariadb-server
+       state: latest
+
+   - name: Enable MariaDB on system reboot
+     service: name=mariadb enabled=yes
+
+   - name: Start service MariaDB, if not started
+     service:
+        name: mariadb
+        state: started
+
+   - name: update MariaDB root user password
+     community.mysql.mysql_user:
+       name: root
+       login_password: "{{ mariadb_root_password }}"
+       check_implicit_admin: yes
+       host: "{{ item }}"
+       password: "{{ mariadb_root_password }}"
+       login_unix_socket: /var/lib/mysql/mysql.sock
+       state: present
+     with_items:
+       - localhost
+       - 127.0.0.1
+       - ::1
+
+   - name: Create Maria DB user
+     mysql_user:
+       name: maxdbuser
+       password: 12345
+       login_host: localhost
+       login_user: "root"
+       login_password: "{{ mariadb_root_password }}"
+       priv: "*.*:ALL,GRANT"
+       host: '%'
+       state: present
+
+   - name: Reload MariaDB privilege tables
+     command:
+        mysql -p{{ mariadb_root_password }} -ne "{{ item }}"
+     with_items:
+        - FLUSH PRIVILEGES
+     changed_when: False
+
+   - name: Creating a new database to be used by WordPress
+     mysql_db:
+        login_user: "root"
+        login_password: "{{mariadb_root_password}}"
+        name: "maxdb"
+        state: present
+
+   - name: firewalld MariaDB configuration (port 3306)
+     firewalld:
+       service: mysql
+       permanent: yes
+       state: enabled
+
+   - name: Restart service firewalld
+     service:
+       name: firewalld
+       state: restarted
+
+
+#=============== PHP, APACHE, WORDPRESS section - node 1 wordpress ==================
+- name: PHP, APACHE, WORDPRESS
+  hosts: wordpress
+  gather_facts: true
+  become: true
+
+  tasks:
+   
+   - name: Install PHP
+     dnf: 
+       name:
+          - php
+          - php-mysqlnd
+          - php-gd
+          - php-mbstring
+          - php-xml
+       state: latest
+
+#=============== APACHE section ================== 
+
+   - name: install httpd APACHE
+     action: yum name=httpd state=installed
+
+   - name: Enable Apache on system reboot
+     service: name=httpd enabled=yes
+
+   - name: Start service httpd, if not started
+     service:
+        name: httpd
+        state: started
+
+   - name: Install python3-libsemanage
+     dnf: 
+       name:
+          - python3-libsemanage
+       state: latest       
+
+   - name: Set httpd_can_network_connect flag on and keep it persistent across reboots
+     seboolean:
+          name: httpd_can_network_connect
+          state: true
+          persistent: yes
+
+   - name: Set httpd_can_network_connect_db flag on and keep it persistent across reboots
+     seboolean:
+          name: httpd_can_network_connect_db
+          state: true
+          persistent: yes
+
+#=============== END APACHE section ==================
+
+#=============== FIREWALL section ================== 
+
+   - name: install firewalld
+     action: yum name=firewalld state=installed
+
+   - name: Enable firewalld on system reboot
+     service: name=firewalld enabled=yes
+
+   - name: firewalld http configuration
+     firewalld:
+       service: http
+       permanent: yes
+       state: enabled
+
+#   - name: firewalld https configuration
+#     firewalld:
+#       service: https
+#       permanent: yes
+#       state: enabled
+   - name: Restart service firewalld
+     service:
+       name: firewalld
+       state: restarted
+#=============== WORDPRESS section ==================
+
+   - name: Install WORDPRESS
+     unarchive: 
+       src: https://wordpress.org/latest.tar.gz
+       dest: /var/www/html/
+       remote_src: yes
+
+   - name: Copy Wordpress to /var/www/html - necessary for SELINUX limitations
+     copy: 
+       src: /var/www/html/wordpress/
+       dest: /var/www/html/
+       remote_src: yes   
+
+   - name: Change owner and permission of /var/www/html/
+     ansible.builtin.file:
+      path: /var/www
+      owner: apache
+      group: apache
+      mode: '755'
+# era 2755 e 0755 qui https://docs.ansible.com/ansible/latest/collections/ansible/builtin/file_module.html#parameter-mode
+# è riportato di usare gli apici altrimenti può portare a errori (prima era senza apici)
+      recurse: yes
+
+   - name: Add modified wp-config.php to Wordpress directory
+     template:
+        src: wp-config.php
+        dest: /var/www/html/wp-config.php
+
+#=============== END WORDPRESS section ==================
+
+#=============== END PHP, APACHE, WORDPRESS section - node 1 wordpress ==================
+
+#=============== HAPROXY section ==================
+
+- name: HAPROXY
+  hosts: haproxy
+  gather_facts: true
+  become: true
+
+  tasks:
+
+   - name: Install HA PROXY
+     dnf: 
+      name:
+        - haproxy
+      state: latest
+
+   - name: Creates /etc/haproxy directory
+     ansible.builtin.file:
+        path: /etc/haproxy
+        state: directory
+        owner: root
+        group: root
+        mode: '775'
+#        recurse: yes
+
+   - name: Copy modified haproxyg.cfg (MAC) to haproxy remote directory
+     copy:
+        src: /Users/massimo/vagrant/rockylinux/HAPROXY_FILES/haproxy.cfg
+        dest: /etc/haproxy/haproxy.cfg
+
+   - name: Copy server.pem (MAC) to haproxy remote directory
+     copy:
+        src: /Users/massimo/vagrant/rockylinux/HAPROXY_FILES/server.pem
+        dest: /etc/haproxy/server.pem
+
+   - name: Restart service HA PROXY
+     service:
+          name: haproxy
+          state: restarted
+
+#=============== FIREWALL section ================== 
+
+   - name: install firewalld
+     action: yum name=firewalld state=installed
+
+   - name: Enable firewalld on system reboot
+     service: name=firewalld enabled=yes
+
+   - name: firewalld http configuration
+     firewalld:
+       service: http
+       permanent: yes
+       state: enabled
+
+   - name: firewalld https configuration
+     firewalld:
+       service: https
+       permanent: yes
+       state: enabled
+
+   - name: Restart service firewalld
+     service:
+       name: firewalld
+       state: restarted
+
+#=============== FIREWALL section ================== 
