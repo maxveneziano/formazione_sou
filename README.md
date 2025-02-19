@@ -1,367 +1,487 @@
-# formazione_sou
-**VIRTUAL BOX**
-
-*Warning! All the indication along this document refers to the Expert mode menu*
-
-- Download VirtualBox 7.1.4 platform packages for [macOS / Intel hosts](https://download.virtualbox.org/virtualbox/7.1.4/VirtualBox-7.1.4-165100-OSX.dmg) 
-- Follow the .dmg installation instructions
-  - Predefined Folder /Users/massimo/VirtualBox VMs
-- Install the command line developer’s tools for Pyton3 support (requires a long installation time)
-- Launch the VIRTUAL BOX from the MAC folder Applications
-- From File -> Tools -> Network manager, set the subnet 192.168.56.0/24 in NAT Networks
-  - Name = NatNetwork (predefined)
-  - IPv4 Prefix = 192.168.56.0/24
-  - Don’t use DHCP
-
-**ROCKY LINUX 9.5**
-
-- Download Rocky Linux 9 Intel x86\_64 platform – DVD (Minimal ISO doesn’t contain some packets) from <https://rockylinux.org/download>
-
-**VIRTUAL BOX CONFIGURATION**
-
-In the Create Virtual Machine (New icon) set:
-
-- VM NAME = RockyLinux node1
-- SO TYPE = Linux
-- SO VERSION = Red Hat (64-bit)
-- Create a virtual Hard Disk now
-- RAM = 2 GB (2048 MB)
-- CPU = 2
-- Skip Unattended Installation
-- Click on Create button
-
-In the new Window, set:
-
-- VIRTUAL DISK = 20GB
-- VHD (Virtual Hard Disk)
-- Click on Create button
-
-In the Settings menu (Settings icon):
-
-- Storage => Controller IDE => Empty - set to the ISO Linux
-- From the main menu bar, open Settings menu then System and select USB Tablet as a pointing device
-- From the VM node settings, open Network Settings and set:
-  - Adapter 1
-  - Attached to: NAT Network
-  - Name: NATNetwork
-
-- Set Skip Unattended installation
-- Check the correct configuration and then press Start to create the VM
-
-**ROCKY LINUX 9.5 Installation**
+# Formazione Sou
 
-- Select Install Rocky Linux 9.5 and press enter
-- A Terminal window will open and will show all the installation step
-- At the end of the Installation, Rocky Linux welcomes and will ask to set the Language (English)
-- Rocky Linux will show the Installation Summary. Set:
-  - Under System the Installation Destination – Confirm the previously defined Virtual Disk (ATA VBOX HARD DISK), then click on Done
-  - Under User settings define the Root user password, then click on Done
+**Process for the creation of a network of 3 server - Wordpress, MariaDB and Haproxy - using Vagrant/Ansible**
 
-    Password \*\*\*\*\*\*\*
+References:
 
-  - Under User settings create a new user, then click on Done
+https://medium.com/@alokkavilkar/a-guide-to-ansible-with-vagrant-6fccf9c49591
 
-    Full name Massimo1
+https://www.theurbanpenguin.com/provisioning-vagrant-with-ansible/
 
-    User name MAX1
+- Download and install VirtualBox from *https://www.virtualbox.org/wiki/Downloads*
+- Download and install Vagrant from *https://www.vagrantup.com/downloads.html*
+- *Create directory for Vagrant project in MAC*
 
-    Password \*\*\*\*\*\*\*
+  mkdir -p $HOME/vagrant/rockylinux
 
-- Click on Begin Installation button on bottom right corner
-- It will be shown the Installation progress until the completion
-- Click on Reboot button on bottom right corner.
+  cd $HOME/vagrant/ rockylinux
 
-- After launching the VM, wait for the complete booting.
-- Provide login
-- Select Wired Connected in the upper left corner (any icon), then Wired settings
-- Press the Cog icon and select the IPv4 tab and Set:
-  - IPv4 Method = Manual
-  - Address 192.168.56.10
-  - Netmask 255.255.255.0
-  - Gateway 192.168.56.1
-  - DNS 8.8.8.8,8.8.4.4
-- Reboot
-- In Activities open a browser and check the correct internet browsing.
-- Shut down
+- Download Rocky Linux box from the Vagrant repository located at: 
 
+`	`*https://app.vagrantup.com/boxes/search*
 
-- In Virtual Box select the first created VM and create 2 additional VM as clone of the first VM
-- Change the MAC Address on the cloned VM’s by accessing the VM node settings, Open Network Settings:
-  - Adapter 1
-  - Attached to: NAT Network
-  - Name: NATNetwork
-  - MAC Address -> Regenerate
+*https://portal.cloud.hashicorp.com/vagrant/discover/rockylinux/9*
 
-- Launch node 2
-- After login and booting completion 
-- Press the Cog icon and select the IPv4 tab and Set:
-  - IPv4 Method = Manual
-  - Address 192.168.56.11
-  - Netmask 255.255.255.0
-  - Gateway 192.168.56.1
-  - DNS 8.8.8.8,8.8.4.4
-- Reboot
-- In Activities open a browser and check the correct internet browsing.
-- Shut down
-- Launch node 3
-- After login and booting completion 
-- Press the Cog icon and select the IPv4 tab and Set:
-  - IPv4 Method = Manual
-  - Address 192.168.56.12
-  - Netmask 255.255.255.0
-  - Gateway 192.168.56.1
-  - DNS 8.8.8.8,8.8.4.4
-- Reboot
-- In Activities open a browser and check the correct internet browsing.
-- Shut down
+(for Box download use this link: https://dl.rockylinux.org/pub/rocky/9/images/x86\_64/)
 
-**Installing Maria DB on ROCKY LINUX 9.5 – node 2**
+- Load Vagrant Rocky Linux Box from file using the command: 
 
-Ref: https://docs.vultr.com/how-to-install-mariadb-on-rocky-linux-9
+vagrant box add <boxname> <location of downloaded box file>
 
-- Type: su root
-- Type: sudo dnf list mariadb. You should obtain mariadb.x86\_64.
-- Install MariaDB: sudo dnf install mariadb mariadb-server -y
-- Check MariaDB mariadb –-sudoversion. You should obtain
+vagrant box add hashicorp/Rockylinux9.5 Rocky-9-Vagrant-Vbox-9.5-20241118.0.x86\_64.box
 
-  mariadb Ver 15.1 *Distrib 1,5,22-MariaDB, for Linux (x86\_64 using EditLine wrapper*
+- Check the loaded Boxes 
 
-**Configuring Maria DB System Service - node 2**
+  vagrant box list -i
 
-- Set MariaDB service to start at boot sudo systemctl enable mariadb
-- Start the MariaDB service sudo systemctl start mariadb
-- Stop the MariaDB service sudo systemctl stop mariadb
-- Restart the MariaDB service sudo systemctl restart mariadb
-- Check the MariaDB status and verify that is running sudo systemctl status mariadb
+- Modify Vagrantfile for creating 3 VMs, assign IP address and define port forwarding of the SSH port In Vagrantfile.
 
-**Access Maria DB - node 2**
+`	`Example for Node 1:
 
-- Log in to the MariaDB console as the root database user console 
+wordpress.vm.network "private\_network", ip: "192.168.56.10"
 
-  mariadb -u root -p You should access the MariaDB console
+wordpress.vm.network "forwarded\_port", id: "ssh", guest: 22, host: 2220, host\_ip: 	"127.0.0.1"
 
-  Prompt: MariaDB [(none)]>
+*Node1 (wordpress) 192.168.56.10 SSH Port Forwarding 127.0.0.1 (host: port 2020)*
 
-- Create a new database user(maxdbuser).
+*Node2 (mariadb) 	192.168.56.11 SSH Port Forwarding 127.0.0.1 (host: port 2021)*
 
-  CREATE USER 'maxdbuser'@'localhost' IDENTIFIED BY 'STRONG-PASSWORD';
+*Node3 (haproxy) 	192.168.56.12 SSH Port Forwarding 127.0.0.1 (host: port 2022)*
 
-  STRONG-PASSWORD is the password
+- On MAC, install Brew (required for install Ansible):
 
-- Create a new sample database (maxdb)
+  https://brew.sh/
 
-  CREATE DATABASE `maxdb`;
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-- Check current Maria DB databases 
+  And provide additional commands:
 
-  SHOW DATABASES;
+  echo >> /Users/massimo/.zprofile                                                               
 
-- Grant the user full privileges to the maxdb database and the remote user
+  massimo@Host-007 ~ % echo 'eval "$(/usr/local/bin/brew shellenv)"' >> /Users/massimo/.zprofile
 
-  GRANT ALL PRIVILEGES ON maxdb.\* TO 'maxdbuser'@'localhost';
+  massimo@Host-007 ~ %  eval "$(/usr/local/bin/brew shellenv)"
 
-  GRANT ALL PRIVILEGES ON maxdb.\* TO 'maxdbuser'@'192.168.56.10';
+  massimo@Host-007 ~ % brew help
 
-- Refresh the MariaDB privilege tables to apply the new user changes.
+  brew update
 
-  FLUSH PRIVILEGES;
+  Then:
 
-- Exit the MariaDB console.
+`	`brew install ansible (on MAC)
 
-  EXIT
+`	`Check / Validate Ansible:
 
-- Log in to the MariaDB console using the new database user and password.
+ansible --version
 
-  mariadb -u maxdbuser -p
+- Modify Vagrantfile in order to use Ansible as provisioner :
 
-  STRONG-PASSWORD is the password
+  config.vm.define "wordpress" do |wordpress|
 
-- Open the 3306 port on DB node 2 (192.168.56.11):
+  `		`wordpress.vm.box = "hashicorp/Rockylinux9.5"
 
-  firewall-cmd --add-port=3306/tcp –-permanent
+  `  	`wordpress.vm.hostname = "VGNode1"
 
-  firewall-cmd –-reload
+  `		`wordpress.vm.provision "ansible", playbook: "Playbook.yml"
 
-- Verify the 3306 port is open
+- Generate in the same directory as Vagrant, the file Playbook.yml (indented!) in order to describe the automated operations:
+  - Create a new user on all 3 systems
+  - Update all packets on all 3 systems
+  - Install and configure MariaDB, PHP on node 2
+  - Install and configure PHP, APACHE and Wordpress on node 1
+  - Install and configure HAPROXY on node 3
+  - Copy self signed server.pem certificate to node 3
 
-  firewall-cmd –-list-all
 
-  **APACHE Installation – node 1**
+**Install and Configure MariaDB on node 2 (mariadb)**
 
-- Connect as Superuser
+Reference: https://citizix.com/how-to-install-and-initialize-mysql-8-on-rocky-linux-8-using-ansible/
 
-  su root
+- Define in a file the variable mariadb\_root\_password
+- Create a dummy file my.cnf.j2 in the current directory with the following contents:
 
-- Install Apache providing the command:
+  [client]
 
-  yum install httpd
+  user=root
 
-- Start Apache
+  password={{ mariadb\_root\_password }}
 
-  systemctl start httpd
+- Copy using an Ansible task to: /root/.my.cnf as a root user.
 
-- Enable on boot
-- systemctl enable httpd
-- Verify the status
+  - name: Add .my.cnf to user home
 
-  systemctl stop httpd
+  `  `template:
 
-  **PHP Installation – node 1**
+  `    `src: my.cnf.j2
 
-- Be sure to act as Superuser
+  `    `dest: /root/.my.cnf
 
-  su
+- Reload privileges with this task:
 
-- Install PHP and required extensions providing the command:
-- yum install php php-mysqlnd php-gd php-xml php-mbstring
-- Restart Apache
+  - name: Reload privilege tables
 
-  systemctl restart httpd
+  `  `command: |
 
-- Verify the status
+  `    `mysql -p{{ mariadb\_root\_password }} -ne "{{ item }}"
 
-  systemctl stop httpd
+  `  `with\_items:
 
-  **Wordpress Installation – node 1**
+  `    `- FLUSH PRIVILEGES
 
-- Be sure to act as Superuser
+  `  `changed\_when: False
 
-  su
+- Install python3-PyMySQL
 
-- Install wget providing the command (if necessary) :
+  `     `dnf: 
 
-  yum install wget
+  `       `name:
 
-- Download the latest version of WordPress through the command:
-- wget https://wordpress.org/latest.tar.gz
-- Extract the downloaded files:
+  `          `- python3-PyMySQL
 
-  tar -xzvf latest.tar.gz
+  `       `state: latest       
 
-- Move WordPress files to the Apache web server's root directory, in order to allow the webserver to serve the WordPress site correctly when users access it through a web browser:
+- Install MariaDB server
 
-  cp -r wordpress/\* /var/www/html/
+  `     `dnf: 
 
-- Set the specific permissions for WordPress files (group, owner):
+  `       `name:
 
-  chown -R apache:apache /var/www/html/
-  chmod -R 755 /var/www/html/
+  `          `- mariadb
 
-- Verify the **"**html**"** directory permissions through the "[**ls**](https://www.geeksforgeeks.org/ls-command-in-linux/)" and "[**grep**](https://www.geeksforgeeks.org/grep-command-in-unixlinux/)" commands:
-  ls -l /var/www | grep html
+  `          `- mariadb-server
 
-  **Wordpress configuration – node 1**
+  `       `state: latest
 
-  References: 
+- `   `Enable MariaDB on system reboot
 
-  <https://www.geeksforgeeks.org/how-to-install-wordpress-on-rocky-linux-9/#step-2-installation-process-of-lamp>
+  `     `service: name=mariadb enabled=yes
 
-  https://www.evemilano.com/blog/collegare-wordpress-nuovo-database/
+- Start service MariaDB, if not started
 
-- Be sure to act as Superuser
-- Rename the original WordPress configuration file:
+  `     `service:
 
-  cd /var/www/html/
-  mv wp-config-sample.php wp-config.php
+  `        `name: mariadb
 
-- Verify through the "ls" and **"**grep**"** commands:
+  `        `state: started
 
-  ls -l | grep wp-config.php
+- `  `Update MariaDB root user password
 
-- Open the "wp-config.php" configuration file:
+  `     `mysql\_user:
 
-  nano wp-config.php
+  `       `name: root
 
-- Modify the previous database settings with:
+  `       `login\_password: "{{ mariadb\_root\_password }}"
 
-  define ('DB\_NAME', 'maxdb');
-  define ('DB\_USER', 'maxdbuser');
-  define ('DB\_PASSWORD', 'STRONG-PASSWORD');
+  `       `check\_implicit\_admin: yes
 
-  define ('DB\_HOST', '192.168.56.11');
+  `       `host: "{{ item }}"
 
-- Open the firewall to allow traffic "http", and "https":
+  `       `password: "{{ mariadb\_root\_password }}"
 
-  firewall-cmd --permanent --add-service=http 
-  firewall-cmd --permanent --add-service=https
-  firewall-cmd –-reload
+  `       `login\_unix\_socket: /var/lib/mysql/mysql.sock
 
-  (alternatively
+  `       `state: present
 
-  firewall-cmd --add-port=80/tcp --permanent
+  `     `with\_items:
 
-  firewall-cmd --add-port=443/tcp -–permanent)
+  `       `- localhost
 
-- Verify through the grep command:
+  `       `- 127.0.0.1
 
-  firewall-cmd --list-all | grep http
+  `       `- ::1
 
-- Verify the remote access to the MariaDB DB on node 2
+- `   `Create Maria DB user
 
-  mariadb -u maxdbuser -h 192.168.56.11 -p
+  `     `mysql\_user:
 
-- Check the Apache networking option ON:
+  `       `name: maxdbuser
 
-`	`using this command will show that this option is available
+  `       `password: 12345
 
-`	`/usr/sbin/getsebool -a | grep httpd
+  `       `login\_host: localhost
 
-- Set the Apache network options through the command, making permanent:
+  `       `login\_user: "root"
 
-  setsebool -P httpd\_can\_network\_connect=1
+  `       `login\_password: "{{ mariadb\_root\_password }}"
 
-  setsebool -P httpd\_can\_network\_connect\_db=1
+  `       `priv: "\*.\*:ALL,GRANT"
 
+  `       `host: '%'
 
-- Port forwarding on Virtual box, configure Virtual box Network:
+  `       `state: present
 
-  Name: Rule 1
+- `   `Reload MariaDB privilege tables
 
-  Protocol: TCP
+  `     `command:
 
-  Host IP: -
+  `        `mysql -p{{ mariadb\_root\_password }} -ne "{{ item }}"
 
-  Host Port:80
+  `     `with\_items:
 
-  Guest IP: 192.168.56.10
+  `        `- FLUSH PRIVILEGES
 
-  Guest Port: 80
+  `     `changed\_when: False
 
-  **HAPROXY installation – node 3**
+- `   `Creating a new database to be used by WordPress
 
-  References: 
+  `     `mysql\_db:
 
-  https://shape.host/resources/how-to-install-and-use-haproxy-on-rocky-linux-8
+  `        `login\_user: "root"
 
-  https://www.haproxy.com/blog/haproxy-configuration-basics-load-balance-your-servers
+  `        `login\_password: "{{mariadb\_root\_password}}"
 
-- Install the **haproxy** package:
+  `        `name: "maxdb"
 
-`	`sudo yum install -y haproxy
+  `        `state: present
 
-- Enable and start the **haproxy** service:
+- `   `MariaDB firewall configuration (port 3306)
 
-`	`sudo systemctl enable haproxy
+  `     `firewalld:
 
-`	`sudo systemctl start haproxy
+  `       `service: mysql
 
-- Set on Wordpress
+  `       `permanent: yes
 
-  WordPress Address (URL) = http://mywpsite.local
+  `       `state: enabled
 
-  Site Address (URL) = http://mywpsite.local
+- `  `Restart service firewalld
 
-  Add to MAC /etc/hosts:
+  `     `service:
 
-  127\.0.0.1	mywpsite.local
+  `       `name: firewalld
 
-- Configure HAPROXY
+  `       `state: restarted
 
-`	`set in /etc/haproxy/haproxy.cfg
+- Test he MariaDB changes: (**testdb** database)
+
+**mysql -u root -h localhost -p** Enter password: (12345)
+Welcome to the MySQL monitor.  Commands end with ; or \g. 
+Your MySQL connection id is 17 
+Server version: 8.0.22-0ubuntu0.20.04.3 (Ubuntu)  mysql> **use testdb;** 
+Reading table information for completion of table and column names You can turn off this feature to get a quicker startup with -A  Database changed 
+mysql> **show tables;** 
++------------------+ 
+| Tables\_in\_testdb | 
++------------------+ 
+| test             | 
++------------------+ 
+1 row in set (0.00 sec)  mysql> **select \* from test;** 
++--------------------+ 
+| message            | 
++--------------------+ 
+| Ansible To Do List | 
+| Get ready          | 
+| Ansible is fun     | 
++--------------------+ 
+3 rows in set (0.00 sec)
+
+
+**Install and configure PHP, APACHE and Wordpress (node 1 - wordpress)**
+
+References:
+
+https://www.infinitypp.com/ansible/install-wordpress-using-ansible-ubuntu-php7/
+
+
+`	`**Install and configure PHP on node 1 (wordpress)**
+
+
+
+- `   `Install PHP
+
+`     `dnf: 
+
+`       `name:
+
+`          `- php
+
+`          `- php-mysqlnd
+
+`          `- php-gd
+
+`          `- php-mbstring
+
+`          `- php-xml
+
+`       `state: latest
+
+`	`**Install and configure APACHE on node 1 (wordpress)**
+
+- `  `Install httpd APACHE
+
+`     `action: yum name=httpd state=installed
+
+- Enable Apache on system reboot
+
+`     `service: name=httpd enabled=yes
+
+- Start service httpd, if not started
+
+`     `service:
+
+`        `name: httpd
+
+`        `state: started
+
+- Install python3-libsemanage
+
+`     `dnf: 
+
+`       `name:
+
+`          `- python3-libsemanage
+
+`       `state: latest       
+
+- `   `Set httpd\_can\_network\_connect and httpd\_network\_connect\_db flags on and keep it persistent across reboots in order to allow the connection with the remote MariaDB database (due to SELINUX limitation):
+
+`     `seboolean:
+
+`          `name: httpd\_can\_network\_connect
+
+`          `state: true
+
+`          `persistent: yes
+
+`     `seboolean:
+
+`          `name: httpd\_can\_network\_connect\_db
+
+`          `state: true
+
+`          `persistent: yes
+
+`   	`**Node 1 (wordpress) firewall configuration (port 80)**
+
+- `   `Install firewalld
+
+`     `action: yum name=firewalld state=installed
+
+- `   `Enable firewalld on system reboot
+
+`     `service: name=firewalld enabled=yes
+
+- `   `Firewalld http configuration
+
+`     `firewalld:
+
+`       `service: http
+
+`       `permanent: yes
+
+`       `state: enabled
+
+- `   `Restart firewalld service
+
+`     `service:
+
+`       `name: firewalld
+
+`       `state: restarted
+
+`	`**Install and configure Wordpress on node 1 (wordpress)**
+
+- `   `Install WORDPRESS
+
+`     `unarchive: 
+
+`       `src: https://wordpress.org/latest.tar.gz
+
+`       `dest: /var/www/html/
+
+`       `remote\_src: yes
+
+- `   `Copy Wordpress to /var/www/html - necessary for SELINUX limitations
+
+`     `copy: 
+
+`       `src: /var/www/html/wordpress/
+
+`       `dest: /var/www/html/
+
+`       `remote\_src: yes   
+
+- `   `Change owner and permission of /var/www/html/
+
+`     `ansible.builtin.file:
+
+`      `path: /var/www
+
+`      `owner: apache
+
+`      `group: apache
+
+`      `mode: '755'
+
+`      `recurse: yes
+
+- `   `Add modified wp-config.php to Wordpress directory.
+
+`     `template:
+
+`        `src: wp-config.php
+
+`        `dest: /var/www/html/wp-config.php
+
+`   	`In case wp-config.php is not present provide the following data in the local file or follow 	the configuration data proposed by wordpress page http://192.168.56.10/wp-	admin/setup-config.php
+
+`	`DB: maxdb
+
+`	`User: maxdbuser
+
+`	`Password: 12345
+
+`	`Host: 192.168.56.11
+
+`	`**Install and configure HAPROXY on node 3 (haproxy)**
+
+Reference:
+
+https://ranga-mani54.medium.com/configuring-haproxy-using-ansible-playbook-27c1ee8b511a https://abhishekverma109.hashnode.dev/automating-haproxy-configuration-with-ansible	
+
+https://www.redhat.com/en/blog/reverse-proxy-ansible
+
+https://medium.com/@haroldfinch01/how-to-create-a-directory-using-ansible-aed142c041eb
+
+- Install the last version of HAPROXY
+
+`     `dnf: 
+
+`   `name:
+
+`     `- haproxy
+
+`   `state: latest
+
+- Creates /etc/haproxy directory and change owner, group and permissions
+
+`     `ansible.builtin.file:
+
+`     `path: /etc/haproxy
+
+`     `state: directory
+
+`     `owner: root
+
+`     `group: root
+
+`     `mode: '775'
+
+- Copy local modified haproxyg.cfg (on MAC) to haproxy remote directory
+
+`     `copy:
+
+`        `src: /Users/massimo/vagrant/rockylinux/HAPROXY\_FILES/haproxy.cfg
+
+`        `dest: /etc/haproxy/haproxy.cfg
+
+`	`The /etc/haproxy/haproxy.cfg contains:
 
 `	`frontend main
 
 `	`bind \*:80
+
+`	`bind \*:443 ssl crt /etc/haproxy/server.pem
 
 `	`default\_backend myserver
 
@@ -369,15 +489,123 @@ backend myserver
 
 `	`wpserver 192.168.56.10:80
 
-comment line:
+commented line:
 
 \#	balance	roundrobin
+
+
+- ` `Copy local server.pem (on MAC) to haproxy remote directory
+
+`     `copy:
+
+`        `src: /Users/massimo/vagrant/rockylinux/HAPROXY\_FILES/server.pem
+
+`        `dest: /etc/haproxy/server.pem
+
+- `  `Restart service HA PROXY
+
+`     `service:
+
+`          `name: haproxy
+
+`          `state: restarted
+
+- `   `Install firewalld
+
+`     `action: yum name=firewalld state=installed
+
+- `   `Enable firewalld on system reboot
+
+`     `service: name=firewalld enabled=yes
+
+- `   `Firewalld http configuration (open port 80) 
+
+`     `firewalld:
+
+`       `service: http
+
+`       `permanent: yes
+
+`       `state: enabled
+
+- `   `Firewalld https configuration (open port 443)
+
+`     `firewalld:
+
+`       `service: https
+
+`       `permanent: yes
+
+`       `state: enabled
+
+- `   `Restart service firewalld
+
+`     `service:
+
+`       `name: firewalld
+
+`       `state: restarted
+
+- Add mywpsite.local to MAC /etc/hosts:
+
+127\.0.0.1	mywpsite.local
+
+- In Vagrant file be sure to forward correctly ports on Node 3 (haproxy - 192.168.56.12):
+
+`	`haproxy.vm.network "private\_network", ip: "192.168.56.12"
+
+`  	`haproxy.vm.network "forwarded\_port", guest: 80, host: 80
+
+` 	`haproxy.vm.network "forwarded\_port", guest: 443, host: 443
+
+
+- Complete manually the Wordpress configuration following the form that appears pointing the browser to https://mywpsite.local 
+
+Create a Wordpress administrator user by pointing a browser to https://mywpsite.local, providing:
+
+User massimo
+
+Password: 12345
+
+After been logged as massimo (administrator) in Wordpress Settings -> General Settings set:
+
+WordPress Address (URL) = http://mywpsite.local
+
+Site Address (URL) = http://mywpsite.local
+
+- Check the correct connection to the test page at https://192.168.56.10/ using the browser on MAC (Chrome)
+
+`	`**Provide the "curl" command from MAC terminal**
+
+- curl <https://mywpsite.local>
+
+  massimo@Host-007 ~ % curl https://mywpsite.local
+```
+  <!DOCTYPE html>
+
+  <html lang="en-US">
+
+  <head>
+
+  <meta charset="UTF-8" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name='robots' content='noindex, nofollow' />
+
+  <style>img:is([sizes="auto" i], [sizes^="auto," i]) { contain-intrinsic-size: 3000px 1500px }</style>
+
+  <title>Max SITE Test 3</title>
+  ```
+     ....
 
 **Self Signed Certificate generation and installation – node 3**
 
 References:
 
 https://sharmank.medium.com/self-signed-certificate-and-use-them-in-haproxy-and-allow-certificate-in-macos-26c3aad316bb
+
+https://medium.com/azure-cloud-techinical/using-ssl-certificates-with-haproxy-8c4d941d9afd
 
 https://webhostinggeeks.com/howto/how-to-configure-ssl-certificate-in-haproxy/
 
@@ -386,6 +614,119 @@ https://www.haproxy.com/documentation/haproxy-configuration-tutorials/authentica
 https://www.haproxy.com/documentation/haproxy-configuration-tutorials/ssl-tls/client-side-encryption/
 
 https://betterstack.com/community/questions/curl-ssl-certificate-problem/
+
+Self signed certificates were already created manually in the previous activity.
+
+For convenience, using Vagrant/Ansible the previous generated certificates are used.
+
+On Node 3 - haproxy, the /etc/haproxy/server.pem file is copied to /etc/haproxy/ while the rootCA.pem is copied and trusted in MAC Keychain ("portachiavi")
+
+For reference purposes, at the bottom, in the appendix, is listed the procedure to create a Self Signed Certificate.
+
+
+
+**APPENDIX**
+
+**Ansible definitions**
+
+- ***playbook***: a playbook is a [*.yml*](https://it.wikipedia.org/wiki/YAML) (or *.yaml*) file where you specify the roles used to configure your host;
+- ***role***: the role is a directory with a defined structure (follow the official [*Ansible documentation*](https://docs.ansible.com/ansible/latest/user_guide/playbooks_reuse_roles.html)), which contains all the tools to install in your host;
+- ***inventory***: an inventory file is a plain text file (without extension), which contains the definition and some parameters.
+
+**Useful commands**
+
+- For vagrant ssh
+
+`		`Start the vagrant VM 
+
+`		`vagrant up
+
+`		`Stop the vagrant VM 
+
+`		`vagrant halt
+
+`		`Connect to the VM with ssh.
+
+`		`vagrant SSH 
+
+`		`vagrant ssh wordpress	(wordpress = nome host)                                         
+
+`		`vagrant ssh mariadb
+
+`		`vagrant ssh haproxy
+
+`		`Check vagrant VM:
+
+`	`vagrant ssh
+
+`	`free -m
+
+- For ifconfig	sudo dnf install net-tools	
+- For users list
+
+  cat /ect/passwd
+
+- Check the Playbook.yml sintax
+
+  ansible-playbook playbook.yml --syntax-check
+
+- Provision the pending provisioned parts
+
+  vagrant provision
+
+- To verify the presence of mariadb Ansible packet
+
+  ansible-galaxy collection list
+
+- To set the root password
+
+  sudo passwd root
+
+- it will show you all locations of \*.cnf files
+
+  find /etc -name \*.cnf
+
+- Sending through terminal to a remote hosts Shell commands:
+
+  For instance, to find out the memory usage on your host1 machine, you could use the following:
+
+`	`ansible -m shell -a 'free -m' host1
+
+- Delete files recursively
+
+`	 `sudo rm -rf wordpress/
+
+- Verify presence of user php
+
+`	`sudo ps aux | grep php-fpm
+
+- Install nano
+
+`	`sudo dnf install nano
+
+- HAProxy's status 
+
+`	`sudo systemctl status haproxy.
+
+- Vagrant 's status (returns ID and status)
+
+  vagrant global-status
+
+**Wordpress Redirect issue**
+
+During the implementation some problem of multiple redirection were experienced on Wordpress server and due to a wrong haproxy.cfg configuration. 
+
+For reference purposes are listed some URL used for identify the solution:
+
+https://stackoverflow.com/questions/49053286/redirect-a-url-to-www-with-haproxy-getting-too-many-redirects
+
+https://serverfault.com/questions/955110/wp-admin-redirect-loop-when-behind-apache-reverse-proxy
+
+https://www.haproxy.com/blog/redirect-http-to-https-with-haproxy
+
+
+
+**Self Signed Certificate process of generation and installation – node 3**
 
 - Generate a CA key to sign certificate:
 
@@ -407,50 +748,50 @@ https://betterstack.com/community/questions/curl-ssl-certificate-problem/
 
 `	`Common Name: mywpsite.local
 
-`		`At the end two files are generated, `rootCA.key` `rootCA.pem`
+`		`At the end two files will be generated, `rootCA.key` `rootCA.pem`
 
 - Create file `server.csr.cnf` (/home/Massimo1) as follows:
 
-  [req]
-  default\_bits = 2048
-  prompt = no
-  default\_md = sha256
-  distinguished\_name = dn
+[req]
+default\_bits = 2048
+prompt = no
+default\_md = sha256
+distinguished\_name = dn
 
-  [dn]
-  C=IT
-  ST=Torino
-  L=Torino
-  O=Sourcesense
-  OU=Random
-  emailAddress=<massimo,veneziano@sourcesense.com>
-  CN=<mywpsite.local>
+[dn]
+C=IT
+ST=Torino
+L=Torino
+O=Sourcesense
+OU=Random
+emailAddress=<massimo,veneziano@sourcesense.com>
+CN=<mywpsite.local>
 
 - Create a v3.ext file with the following contents:
 
-  authorityKeyIdentifier=keyid,issuer
-  basicConstraints=CA:FALSE
-  keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
-  subjectAltName = [@alt_names](http://twitter.com/alt_names)
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+subjectAltName = [@alt_names](http://twitter.com/alt_names)
 
-  [alt\_names]
-  DNS.1=<mywpsite.local>
+[alt\_names]
+DNS.1=<mywpsite.local>
 
 - Generate private key
 
-  openssl req -new -sha256 -nodes -out server.csr -newkey rsa:2048 -keyout server.key -config <( cat server.csr.cnf )
+openssl req -new -sha256 -nodes -out server.csr -newkey rsa:2048 -keyout server.key -config <( cat server.csr.cnf )
 
 - Generate private certificate
 
-  openssl x509 -req -in server.csr -CA rootCA.pem -CAkey rootCA.key -CAcreateserial -out server.crt -days 3650 -sha256 -extfile v3.ext
+openssl x509 -req -in server.csr -CA rootCA.pem -CAkey rootCA.key -CAcreateserial -out server.crt -days 3650 -sha256 -extfile v3.ext
 
 `		`At the end two additional files are generated, server.key server.crt
 
 
 - Haproxy, requires to combine server.key server.crt, run the following command:
 
-  bash -c 'cat server.key server.crt >> server.pem'
-  chmod 600 server.pem
+bash -c 'cat server.key server.crt >> server.pem'
+chmod 600 server.pem
 
 - Update the HAPROXY configuration
 
@@ -474,39 +815,13 @@ comment line:
 
 \#	balance	roundrobin
 
-- Update Port forwarding on Virtual box by configuring Virtual box Network:
-
-  Name: Server http
-
-  Protocol: TCP
-
-  Host IP: -
-
-  Host Port:80
-
-  Guest IP: 192.168.56.12
-
-  Guest Port: 80
-
-  Name: Server https
-
-  Protocol: TCP
-
-  Host IP: -
-
-  Host Port:443
-
-  Guest IP: 192.168.56.12
-
-  Guest Port: 443
-
 - Add the new certificate on MAC
 
-`		`Access the Key ring on MAC and the new certificate rootCA.pem
+  `		`Access the Keychain ("portachiavi") on MAC and the new certificate rootCA.pem
 
-`		`Confirm the certificate as trusted by clicking twice on the certificate (with 			warning)
+  `		`Confirm the certificate as trusted by clicking twice on the certificate (with 			warning)
 
-`	`**Specify and set the CA Bundle Path**
+`	`**Specify and set the CA Bundle Path on MAC**
 
 - Use the --cacert Option with curl:
 
@@ -524,28 +839,4 @@ comment line:
 
 - Add the ambient variable through the following line:
 
-`	`export CURL\_CA\_BUNDLE=/etc/ssl/rootCA.pem
-
-
-
-`	`**Provide the "curl" command**
-
-- curl <https://mywpsite.local>
-
-  massimo@Host-007 ~ % curl https://mywpsite.local  
-```
-  <!DOCTYPE html>
-
-  <html lang="en-US">
-
-  <head>
-
-  `	`<meta charset="UTF-8" />
-
-  `	`<meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <meta name='robots' content='noindex, nofollow' />
-
-  `	`<style>img:is([sizes="auto" i], [sizes^="auto," i]) { contain-intrinsic-size: 3000px 1500px }</style>
-
-  `	`<title>MAX Test</title>   ```.....
+`	`export CURL\_CA\_BUNDLE=/etc/ssl/rootCA.pem 
